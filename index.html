@@ -15,35 +15,29 @@
 		// still recommending it for web applications.
 		// For a version using auth code flow with pkce, look at the pkce branch
 
-		// Need client_id to be global
-		let client_id = '467933425294328';
+		// Need client_id to be global (replace this with your Google client ID)
+		let client_id = '540851378202-ok5tsgq8t9p5ddp9nbccd8ifufh4qg68.apps.googleusercontent.com';
 
 		function login_redirect() {
-			// Many apps would display a "Login" button to alert users that
-			// they need to login.  I'm simply redirecting to the facebook login
-			// page.
-			//
-			// IMPORTANT: You will need to register as the application developer
-			//            on facebook and create an APP, which will provide
-			//            you with a unique client_id.  
-			//
-			//            Visit https://developers.facebook.com to create
-			//            your client_id (call the APP ID in the facebook console)
+			// Redirect to Google's OAuth 2.0 authentication page
+			let redirect_url = `https://accounts.google.com/o/oauth2/v2/auth`;
+			let redirect_uri = 'https://refactored-lamp-v6v9qp44994qhwvx6.github.dev/oauth-basic-tutorial/';
 
+			// Log the redirect URI to ensure it's correct
+			console.log(`Redirecting to: ${redirect_uri}`);
 
-			// This will redirect the page to facebook.
-
-			let redirect_url = `https://www.facebook.com/v20.0/dialog/oauth`;
-			let params = [`client_id=${client_id}`,
-			`redirect_uri=${document.location.href}`,
+			let params = [
+				`client_id=${client_id}`,
+				`redirect_uri=${redirect_uri}`,
 				`response_type=token`,
-				`scope=openid email public_profile`].join('&');
+				`scope=openid email profile`
+			].join('&');
 
 			document.location.href = `${redirect_url}?${params}`;
 		}
 
 		function get_token() {
-			// Now that we code a code, exchange for token	 
+			// Extract the access token from the URL fragment
 			let token = new URLSearchParams(
 				document.location.href.substr(document.location.href.indexOf('#') + 1)
 			).get('access_token');
@@ -51,56 +45,42 @@
 		}
 
 		async function api_call(token) {
-			let api_result = await fetch('https://graph.facebook.com/v20.0/me?fields=name,email,picture', {
-				// IMPORTANT:  You must include the token in the Authroization header
-				//             Otherwise how can facebook know who is calling?
+			// Call Google's userinfo endpoint to get the user's profile information
+			let api_result = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
 				headers: {
 					"Authorization": `Bearer ${token}`
 				}
-			})
+			});
 
-			return await api_result.json()
+			return await api_result.json();
 		}
 
-
 		function render_page(myJson) {
-			// Pure javascript to insert a couple of components to the page
+			// Display the user's name and profile picture on the page
 			let userinfo = document.createElement('h2');
 			userinfo.innerText = `Hello ${myJson.name}`;
 			document.body.append(userinfo);
 
 			let userpic = document.createElement('img');
-			userpic.src = myJson.picture.data.url;
+			userpic.src = myJson.picture;
 			document.body.append(userpic);
 		}
 
 		async function load() {
-
-			// - Step 1 -
-			// We need to login via facebook if we don't have a code
+			// Step 1: Redirect to login if there's no access token
 			if (!document.location.href.includes('access_token')) {
-				login_redirect()
+				login_redirect();
+				return;
 			}
 
-			// - Step 2 -
-			// If we are here, we can get a token from the URL fragment
-			let token = get_token()
+			// Step 2: Get the access token from the URL fragment
+			let token = get_token();
 
-			// - Step 3 -
-			// Now that we have a token, we can make API calls to facebook.
-			// Here we simply retrieve the user's name, email, and profile pic
-			// to confirm the user's identity
+			// Step 3: Make an API call to Google's userinfo endpoint
 			let json = await api_call(token);
 
-			// - Step 4 -
-			// Our facebook API call is successful, this means
-			// our token is valid and we have the user's name, email and pic
-			//
-			// At this point, it's up to your application to decide what to do
-			// with the information.  I'm simply going to display it to
-			// the console and also to the HTML
+			// Step 4: Render the user's profile information on the page
 			render_page(json);
-
 		}
 	</script>
 </body>
